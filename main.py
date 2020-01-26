@@ -4,12 +4,20 @@ import curses
 from random import randint, choice
 from animations.fire_animation import fire
 from animations.spaceship_animation import animate_spaceship, run_spaceship
-from animations.space_garbage import fly_garbage
+#from animations.space_garbage import fly_garbage
 from curses_tools import read_controls, draw_frame, read_controls
 from space_ship_physics import update_speed
+from obstacles import Obstacle
+import uuid as u
 
 
 coroutines = []
+obstacles = [
+  #  Obstacle(10, 10),  # первое препятствие
+   # Obstacle(10, 12, uid='второе препятствие с названием'),
+   # Obstacle(20, 20, 5, 5, uid='третье большое препятствие'),
+]
+
 
 
 TIC_TIMEOUT = 0.1
@@ -45,7 +53,7 @@ async def fill_orbit_with_garbage(canvas, garbage_list):
     _, columns_number = canvas.getmaxyx()
     while True:
         rand_garbage_frame = garbage_list[randint(0, len(garbage_list)-1)]
-        coroutines.append(fly_garbage(canvas, randint(0,columns_number), rand_garbage_frame, speed=0.5))
+        coroutines.append(fly_garbage(canvas, randint(0,columns_number), rand_garbage_frame, speed=0.5, uid=u.uuid4()))
         await sleep(5)
 
 
@@ -63,9 +71,11 @@ def create_stars(canvas, STARS_COUNT):
 
 
 def open_animation_files():
+    #with open('/home/kratorr/projects/devman/async_space_game/animations/rocket_frame_1.txt') as rocket_frame:
     with open('animations/rocket_frame_1.txt') as rocket_frame:
         rocket_frame_1 = rocket_frame.read()
 
+    #with open('/home/kratorr/projects/devman/async_space_game/animations/rocket_frame_2.txt') as rocket_frame:
     with open('animations/rocket_frame_2.txt') as rocket_frame:
         rocket_frame_2 = rocket_frame.read()
 
@@ -87,6 +97,7 @@ def draw(canvas):
     canvas.nodelay(True) 
     max_row, max_column = canvas.getmaxyx()
     global coroutines
+    global obstacles
     coroutines +=  create_stars(canvas, STAR_COUNT)
 
 
@@ -96,6 +107,8 @@ def draw(canvas):
     
     coroutines.append(fill_orbit_with_garbage(canvas, garbage_list))
    
+    coroutines.append(show_obstacles(canvas, obstacles))    
+
     while True:
         for coroutine in coroutines:
             try:
@@ -126,29 +139,13 @@ async def run_spaceship(canvas, row, column):
     columns_direction = 0
     row_speed = column_speed = 0
     while True:
-        global spaceship_frame
-        global coroutines
+
+
+        draw_frame(canvas, row, column, spaceship_frame)
         last_frame = spaceship_frame
-        
-        draw_frame(canvas, row, column, spaceship_frame, negative=False)
-        await asyncio.sleep(0)
+        await sleep(1)
         draw_frame(canvas, row, column, last_frame, negative=True)
-        last_frame = spaceship_frame
-        draw_frame(canvas, row, column, spaceship_frame, negative=False)
-        await asyncio.sleep(0)
-        draw_frame(canvas, row, column, last_frame, negative=True)
-        
-
-
-        if column + columns_direction != 0: 
-            if column + columns_direction < max_column - ship_width:
-                column = column + columns_direction
-
-        if row + rows_direction != 0:
-            if row + rows_direction < max_row - ship_height :
-                row = row + rows_direction
-        
-        
+      
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
         
         row_speed, column_speed = update_speed(
@@ -156,6 +153,7 @@ async def run_spaceship(canvas, row, column):
         )
         row = row + row_speed
         column = column + column_speed
+
         if space_pressed is True:
             coroutines.append(fire(canvas, row, column + 2, rows_speed=-0.3, columns_speed=0))
 
@@ -200,7 +198,40 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
 
 
+
+from curses_tools import draw_frame
+import asyncio
+from obstacles import show_obstacles
+from curses_tools import get_frame_size
+
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
+    """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    rows_number, columns_number = canvas.getmaxyx()
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
+    global obstacles
+    row = 0
+    garbage_rows, garbabe_columns = get_frame_size(garbage_frame)
+    obstacles.append(Obstacle(row, column, garbage_rows, garbabe_columns, uid=uid))
+    
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+                                    
+        for obstace in obstacles:
+            if obstace.uid == uid:
+                obstace.row = row
+                obstace.column = column
+        row += speed
+
+
 if __name__ == '__main__':
+    #print('Список всех препятствий:')
+    #for obstacle in obstacles:
+    #    print(obstacle.row, obstacle.column, obstacle.rows_size, obstacle.columns_size, obstacle.uid)
+    
     ship_frame1, ship_frame2 = open_animation_files()
     garbage_list = open_garbage_files()
     curses.update_lines_cols()
