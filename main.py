@@ -12,18 +12,14 @@ import uuid as u
 
 
 coroutines = []
-obstacles = [
-  #  Obstacle(10, 10),  # первое препятствие
-   # Obstacle(10, 12, uid='второе препятствие с названием'),
-   # Obstacle(20, 20, 5, 5, uid='третье большое препятствие'),
-]
-
-
+obstacles = []
+obstacles_in_last_collisions = []
 
 TIC_TIMEOUT = 0.1
 STAR_COUNT = 100
 STAR_SYMBOLS = '+*.:'
 GARBAGE_FRAMES = ['trash_x1.txt', 'trash_large.txt', 'trash_small.txt']
+
 
 async def sleep(tics=1):
   for _ in range(tics):
@@ -90,6 +86,13 @@ def open_garbage_files():
         garbage_list.append(garbage)
     return garbage_list
 
+async def count(canvas):
+    global obstacles
+    while True:
+        draw_frame(canvas, 10, 10, str(len(obstacles)), negative=False)
+        await sleep(1)
+        draw_frame(canvas, 5, 5, str(len(obstacles)), negative=True)
+
 
 def draw(canvas):
     canvas.border(0)
@@ -107,15 +110,19 @@ def draw(canvas):
     
     coroutines.append(fill_orbit_with_garbage(canvas, garbage_list))
    
-    coroutines.append(show_obstacles(canvas, obstacles))    
+    coroutines.append(show_obstacles(canvas, obstacles))
+
+    coroutines.append(count(canvas))    
 
     while True:
+        
         for coroutine in coroutines:
             try:
                 coroutine.send(None)
             except StopIteration:
                 coroutines.remove(coroutine)
         canvas.refresh()
+        canvas.border(0)
         time.sleep(TIC_TIMEOUT)
 
 
@@ -170,7 +177,7 @@ async def animate_spaceship(frame_1, frame_2, canvas):
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
-
+    global obstacles
     row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
@@ -196,7 +203,10 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         canvas.addstr(round(row), round(column), ' ')
         row += rows_speed
         column += columns_speed
-
+        for obstacle in obstacles:
+            if obstacle.has_collision(row, column):
+                return ''
+            
 
 
 from curses_tools import draw_frame
@@ -213,19 +223,23 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
     row = 0
     garbage_rows, garbabe_columns = get_frame_size(garbage_frame)
     obstacles.append(Obstacle(row, column, garbage_rows, garbabe_columns, uid=uid))
-    
-    while row < rows_number:
-        draw_frame(canvas, row, column, garbage_frame)
-        
-        await asyncio.sleep(0)
-        draw_frame(canvas, row, column, garbage_frame, negative=True)
-                                    
-        for obstace in obstacles:
-            if obstace.uid == uid:
-                obstace.row = row
-                obstace.column = column
-        row += speed
+    try:
+        while row < rows_number:
+            
+            draw_frame(canvas, row, column, garbage_frame)              
+            await asyncio.sleep(0)
+            draw_frame(canvas, row, column, garbage_frame, negative=True)
+            
+            for obstacle in obstacles:
+                if obstacle.uid == uid:
+                    obstacle.row = row
+                    obstacle.column = column
+            row += speed
 
+    finally:
+
+        pass
+       # obstacles.remove(obstacle)
 
 if __name__ == '__main__':
     #print('Список всех препятствий:')
