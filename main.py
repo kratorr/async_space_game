@@ -88,11 +88,13 @@ def open_garbage_files():
 
 async def count(canvas):
     global obstacles
+    global coroutines
     while True:
         draw_frame(canvas, 10, 10, str(len(obstacles)), negative=False)
+        draw_frame(canvas, 10, 20, str(len(coroutines)), negative=False)
         await sleep(1)
-        draw_frame(canvas, 5, 5, str(len(obstacles)), negative=True)
-
+        draw_frame(canvas, 10, 10, str(len(obstacles)), negative=True)
+        draw_frame(canvas, 10, 20, str(len(coroutines)), negative=False)
 
 def draw(canvas):
     canvas.border(0)
@@ -115,7 +117,6 @@ def draw(canvas):
     coroutines.append(count(canvas))    
 
     while True:
-        
         for coroutine in coroutines:
             try:
                 coroutine.send(None)
@@ -216,10 +217,10 @@ from curses_tools import get_frame_size
 
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
     """Animate garbage, flying from top to bottom. Сolumn position will stay same, as specified on start."""
+    global obstacles
     rows_number, columns_number = canvas.getmaxyx()
     column = max(column, 0)
     column = min(column, columns_number - 1)
-    global obstacles
     row = 0
     garbage_rows, garbabe_columns = get_frame_size(garbage_frame)
     obstacles.append(Obstacle(row, column, garbage_rows, garbabe_columns, uid=uid))
@@ -235,11 +236,9 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
                     obstacle.row = row
                     obstacle.column = column
             row += speed
-
     finally:
-
-        pass
-       # obstacles.remove(obstacle)
+        if obstacle in obstacles:
+            obstacles.remove(obstacle)
 
 if __name__ == '__main__':
     #print('Список всех препятствий:')
