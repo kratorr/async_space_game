@@ -206,6 +206,7 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         column += columns_speed
         for obstacle in obstacles:
             if obstacle.has_collision(row, column):
+                obstacles_in_last_collisions.append(obstacle)
                 return ''
             
 
@@ -226,6 +227,9 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
     obstacles.append(Obstacle(row, column, garbage_rows, garbabe_columns, uid=uid))
     try:
         while row < rows_number:
+            hit_obstacles = list(filter(lambda x: x.uid == uid, obstacles_in_last_collisions))
+            if hit_obstacles:
+                return ''
             
             draw_frame(canvas, row, column, garbage_frame)              
             await asyncio.sleep(0)
@@ -237,8 +241,9 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
                     obstacle.column = column
             row += speed
     finally:
-        if obstacle in obstacles:
-            obstacles.remove(obstacle)
+        for obstacle in obstacles:
+            if obstacle.uid == uid:
+                obstacles.remove(obstacle)
 
 if __name__ == '__main__':
     #print('Список всех препятствий:')
