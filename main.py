@@ -90,11 +90,13 @@ async def count(canvas):
     global obstacles
     global coroutines
     while True:
-        draw_frame(canvas, 10, 10, str(len(obstacles)), negative=False)
-        draw_frame(canvas, 10, 20, str(len(coroutines)), negative=False)
+        draw_frame(canvas, 10, 10, str(len(obstacles)) + 'obs', negative=False)
+        draw_frame(canvas, 10, 20, str(len(coroutines)) + 'coro', negative=False)
+        draw_frame(canvas, 10, 30, str(len(obstacles_in_last_collisions)) + 'coll', negative=False)
         await sleep(1)
-        draw_frame(canvas, 10, 10, str(len(obstacles)), negative=True)
-        draw_frame(canvas, 10, 20, str(len(coroutines)), negative=False)
+        draw_frame(canvas, 10, 10, str(len(obstacles)) + 'obs', negative=True)
+        draw_frame(canvas, 10, 20, str(len(coroutines)) + 'coro', negative=True)
+        draw_frame(canvas, 10, 30, str(len(obstacles_in_last_collisions)) + 'coll', negative=True)
 
 def draw(canvas):
     canvas.border(0)
@@ -112,9 +114,9 @@ def draw(canvas):
     
     coroutines.append(fill_orbit_with_garbage(canvas, garbage_list))
    
-    coroutines.append(show_obstacles(canvas, obstacles))
+    #coroutines.append(show_obstacles(canvas, obstacles))
 
-    coroutines.append(count(canvas))    
+    coroutines.append(count(canvas))
 
     while True:
         for coroutine in coroutines:
@@ -229,6 +231,8 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
         while row < rows_number:
             hit_obstacles = list(filter(lambda x: x.uid == uid, obstacles_in_last_collisions))
             if hit_obstacles:
+                obstacles_in_last_collisions.remove(hit_obstacles[0])
+                await explode(canvas, row + garbage_rows / 2, column + garbabe_columns / 2)
                 return ''
             
             draw_frame(canvas, row, column, garbage_frame)              
@@ -244,6 +248,48 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
         for obstacle in obstacles:
             if obstacle.uid == uid:
                 obstacles.remove(obstacle)
+
+
+EXPLOSION_FRAMES = [
+    """\
+           (_) 
+       (  (   (  (
+      () (  (  )
+        ( )  ()
+    """,
+    """\
+           (_) 
+       (  (   (   
+         (  (  )
+          )  (
+    """,
+    """\
+            (  
+          (   (   
+         (     (
+          )  (
+    """,
+    """\
+            ( 
+              (
+            (  
+    """,
+]
+
+async def explode(canvas, center_row, center_column):
+    rows, columns = get_frame_size(EXPLOSION_FRAMES[0])
+    corner_row = center_row - rows / 2
+    corner_column = center_column - columns / 2
+    
+    curses.beep()
+    for frame in EXPLOSION_FRAMES:
+        
+        draw_frame(canvas, corner_row, corner_column, frame)
+        
+        await asyncio.sleep(0)
+        draw_frame(canvas, corner_row, corner_column, frame, negative=True)
+        await asyncio.sleep(0)
+
 
 if __name__ == '__main__':
     #print('Список всех препятствий:')
