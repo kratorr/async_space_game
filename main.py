@@ -143,6 +143,7 @@ spaceship_frame = ''
 async def run_spaceship(canvas, row, column):
     global coroutines
     global spaceship_frame
+    global obstacles
     ship_height, ship_width = 9, 5
     max_row, max_column = canvas.getmaxyx()
     rows_direction = 0
@@ -164,6 +165,11 @@ async def run_spaceship(canvas, row, column):
         row = row + row_speed
         column = column + column_speed
 
+        for obstacle in obstacles:
+            if obstacle.has_collision(row, column):
+                print('game Over')
+                return ''
+        
         if space_pressed is True:
             coroutines.append(fire(canvas, row, column + 2, rows_speed=-0.3, columns_speed=0))
 
