@@ -111,7 +111,7 @@ async def run_spaceship(canvas, row, column):
             if obstacle.has_collision(row, column):
                 await show_gameover(canvas)
                 return ''
-        if space_pressed is True:
+        if space_pressed is True and year > 2020:
             coroutines.append(
                 fire(canvas, row, column + 2, rows_speed=-0.3, columns_speed=0)
             )
@@ -208,7 +208,7 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
                 )
                 return ''
 
-            draw_frame(canvas, row, column, garbage_frame)        
+            draw_frame(canvas, row, column, garbage_frame)
             await asyncio.sleep(0)
             draw_frame(canvas, row, column, garbage_frame, negative=True)
 
