@@ -237,20 +237,22 @@ async def explode(canvas, center_row, center_column):
 
 
 async def fill_orbit_with_garbage(canvas, garbage_list):
-    global coroutines
     _, columns_number = canvas.getmaxyx()
     while True:
-        rand_garbage_frame = garbage_list[randint(0, len(garbage_list)-1)]
-        coroutines.append(
-                fly_garbage(
-                    canvas,
-                    randint(0, columns_number),
-                    rand_garbage_frame,
-                    speed=0.5,
-                    uid=u.uuid4()
+        delay = get_garbage_delay_tics(year)
+        if delay is not None:
+            rand_garbage_frame = garbage_list[randint(0, len(garbage_list)-1)]
+            coroutines.append(
+                    fly_garbage(
+                        canvas,
+                        randint(0, columns_number),
+                        rand_garbage_frame,
+                        speed=0.5,
+                        uid=u.uuid4()
+                    )
                 )
-            )
-        await sleep(5)
+            await sleep(delay)
+        await sleep(1)
 
 
 def create_stars(canvas, STARS_COUNT):
@@ -285,19 +287,6 @@ def open_garbage_files():
     return garbage_list
 
 
-async def count(canvas):
-    global obstacles
-    global coroutines
-    while True:
-        draw_frame(canvas, 10, 10, str(len(obstacles)) + 'obs', negative=False)
-        draw_frame(canvas, 10, 20, str(len(coroutines)) + 'coro', negative=False)
-        draw_frame(canvas, 10, 30, str(len(obstacles_in_last_collisions)) + 'coll', negative=False)
-        await sleep(1)
-        draw_frame(canvas, 10, 10, str(len(obstacles)) + 'obs', negative=True)
-        draw_frame(canvas, 10, 20, str(len(coroutines)) + 'coro', negative=True)
-        draw_frame(canvas, 10, 30, str(len(obstacles_in_last_collisions)) + 'coll', negative=True)
-
-
 def draw(canvas):
     canvas.border(0)
     curses.curs_set(0)
@@ -311,8 +300,6 @@ def draw(canvas):
     coroutines.append(run_spaceship(canvas, int(max_row/2), int(max_column/2)))
     coroutines.append(animate_spaceship(ship_frame1, ship_frame2, canvas))
     coroutines.append(fill_orbit_with_garbage(canvas, garbage_list))
-    coroutines.append(show_obstacles(canvas, obstacles))
-    coroutines.append(count(canvas))
     coroutines.append(start_time())
     coroutines.append(show_game_info(info_window))
 
