@@ -64,26 +64,19 @@ async def start_time(one_year_time=15):
 
 async def show_game_info(window):
     while True:
-        phrase = PHRASES.get(year)
-        year_message = f'Year: {year}'
+        year_message = f'Year: {year} '
+        if year in PHRASES:
+            year_message += PHRASES.get(year)
 
         draw_frame(window, 0, 0, year_message, negative=False)
-        if phrase is not None:
-            draw_frame(
-                window, 0, len(year_message), f' - {phrase}', negative=False
-            )
         await sleep(1)
-
-        if phrase is not None:
-            draw_frame(
-                window, 0, len(year_message), f' - {phrase}', negative=True
-            )
         draw_frame(window, 0, 0, year_message, negative=True)
 
 
 async def run_spaceship(canvas, row, column):
     ship_height, ship_width = 9, 5
-    max_row, max_column = canvas.getmaxyx()
+    rows, columns = canvas.getmaxyx()
+    max_row, max_column = rows - 1, columns - 1
     rows_direction = 0
     columns_direction = 0
     row_speed = column_speed = 0
@@ -102,16 +95,16 @@ async def run_spaceship(canvas, row, column):
         column = column + column_speed
 
         column = 0 if column < 0 else column
-        column = max_column - ship_width if column > max_column - ship_width else column
+       # column = max_column - ship_width if column > max_column - ship_width else column
 
         row = 0 if row < 0 else row
-        row = max_row - ship_height if row > max_row - ship_height else row
+       # row = max_row - ship_height if row > max_row - ship_height else row
 
         for obstacle in obstacles:
             if obstacle.has_collision(row, column):
                 await show_gameover(canvas)
-                return ''
-        if space_pressed is True and year > 2020:
+                return
+        if space_pressed and year > 2020:
             coroutines.append(
                 fire(canvas, row, column + 2, rows_speed=-0.3, columns_speed=0)
             )
@@ -119,6 +112,7 @@ async def run_spaceship(canvas, row, column):
 
 async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0):
     """Display animation of gun shot. Direction and speed can be specified."""
+
     row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
@@ -147,11 +141,12 @@ async def fire(canvas, start_row, start_column, rows_speed=-0.3, columns_speed=0
         for obstacle in obstacles:
             if obstacle.has_collision(row, column):
                 obstacles_in_last_collisions.append(obstacle)
-                return ''
+                return
 
 
 async def show_gameover(canvas):
-    max_row, max_column = canvas.getmaxyx()
+    rows, columns = canvas.getmaxyx()
+    max_row, max_column = rows - 1, columns - 1
     f_row, f_col = get_frame_size(gameover_frame)
     while True:
         draw_frame(
@@ -164,9 +159,9 @@ async def animate_spaceship(frame_1, frame_2, canvas):
     global spaceship_frame
     while True:
         spaceship_frame = frame_1
-        await sleep(1)
+        await sleep(2)
         spaceship_frame = frame_2
-        await sleep(1)
+        await sleep(2)
 
 
 async def blink(canvas, row, column, symbol='*', offset=0):
@@ -188,39 +183,31 @@ async def blink(canvas, row, column, symbol='*', offset=0):
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
     """Animate garbage, flying from top to bottom.
      Сolumn position will stay same, as specified on start."""
+
     rows_number, columns_number = canvas.getmaxyx()
     column = max(column, 0)
     column = min(column, columns_number - 1)
     row = 0
     garbage_rows, garbabe_columns = get_frame_size(garbage_frame)
-    obstacles.append(
-        Obstacle(row, column, garbage_rows, garbabe_columns, uid=uid)
-    )
+    global obstacles
+    global obstacles_in_last_collisions
+    obstacle = Obstacle(row, column, garbage_rows, garbabe_columns)
+    obstacles.append(obstacle)
     try:
         while row < rows_number:
-            hit_obstacles = list(
-                filter(lambda x: x.uid == uid, obstacles_in_last_collisions)
-            )
-            if hit_obstacles:
-                obstacles_in_last_collisions.remove(hit_obstacles[0])
+            draw_frame(canvas, row, column, garbage_frame)
+            await sleep(1)
+            draw_frame(canvas, row, column, garbage_frame, negative=True)
+            if obstacle in obstacles_in_last_collisions:
+                obstacles_in_last_collisions.remove(obstacle)
                 await explode(
                     canvas, row + garbage_rows / 2, column + garbabe_columns / 2
                 )
-                return ''
-
-            draw_frame(canvas, row, column, garbage_frame)
-            await asyncio.sleep(0)
-            draw_frame(canvas, row, column, garbage_frame, negative=True)
-
-            for obstacle in obstacles:
-                if obstacle.uid == uid:
-                    obstacle.row = row
-                    obstacle.column = column
+                return
             row += speed
+            obstacle.row = row
     finally:
-        for obstacle in obstacles:
-            if obstacle.uid == uid:
-                obstacles.remove(obstacle)
+        obstacles.remove(obstacle)
 
 
 async def explode(canvas, center_row, center_column):
@@ -240,7 +227,7 @@ async def fill_orbit_with_garbage(canvas, garbage_list):
     _, columns_number = canvas.getmaxyx()
     while True:
         delay = get_garbage_delay_tics(year)
-        if delay is not None:
+        if delay:
             rand_garbage_frame = garbage_list[randint(0, len(garbage_list)-1)]
             coroutines.append(
                     fly_garbage(
@@ -302,9 +289,9 @@ def draw(canvas):
     coroutines.append(fill_orbit_with_garbage(canvas, garbage_list))
     coroutines.append(start_time())
     coroutines.append(show_game_info(info_window))
-
+    coroutines.append(show_obstacles(canvas, obstacles))
     while True:
-        for coroutine in coroutines:
+        for coroutine in coroutines.copy():
             try:
                 coroutine.send(None)
             except StopIteration:
