@@ -75,15 +75,19 @@ async def show_game_info(window):
 
 async def run_spaceship(canvas, row, column):
     ship_height, ship_width = 9, 5
-    rows, columns = canvas.getmaxyx()
+
+    rows, columns = canvas.getmaxyx()  #return rows and columns count, not coordinate
     max_row, max_column = rows - 1, columns - 1
+
     rows_direction = 0
     columns_direction = 0
     row_speed = column_speed = 0
+
     while True:
         draw_frame(canvas, row, column, spaceship_frame)
         last_frame = spaceship_frame
         await sleep(1)
+
         draw_frame(canvas, row, column, last_frame, negative=True)
 
         rows_direction, columns_direction, space_pressed = read_controls(canvas)
@@ -94,11 +98,11 @@ async def run_spaceship(canvas, row, column):
         row = row + row_speed
         column = column + column_speed
 
-        column = 0 if column < 0 else column
-       # column = max_column - ship_width if column > max_column - ship_width else column
+        column = max(column, 0)
+        column = min(column, max_column - ship_width)
 
-        row = 0 if row < 0 else row
-       # row = max_row - ship_height if row > max_row - ship_height else row
+        row = max(row, 0)
+        row = min(row, max_row - ship_height)
 
         for obstacle in obstacles:
             if obstacle.has_collision(row, column):
@@ -183,7 +187,6 @@ async def blink(canvas, row, column, symbol='*', offset=0):
 async def fly_garbage(canvas, column, garbage_frame, speed=0.5, uid=None):
     """Animate garbage, flying from top to bottom.
      Сolumn position will stay same, as specified on start."""
-
     rows_number, columns_number = canvas.getmaxyx()
     column = max(column, 0)
     column = min(column, columns_number - 1)
@@ -232,7 +235,7 @@ async def fill_orbit_with_garbage(canvas, garbage_list):
             coroutines.append(
                     fly_garbage(
                         canvas,
-                        randint(0, columns_number),
+                        randint(0, columns_number-1),
                         rand_garbage_frame,
                         speed=0.5,
                         uid=u.uuid4()
@@ -245,10 +248,11 @@ async def fill_orbit_with_garbage(canvas, garbage_list):
 def create_stars(canvas, STARS_COUNT):
     stars = []
     border_width = 1
-    rows_count, cols_count = canvas.getmaxyx()
+    rows, columns = canvas.getmaxyx()
+    max_row, max_column = rows - 1, columns - 1
     for _ in range(STARS_COUNT):
-        row = randint(border_width, rows_count - 1 - border_width)
-        col = randint(border_width, cols_count - 1 - border_width)
+        row = randint(border_width, max_row - border_width)
+        col = randint(border_width, max_column - border_width)
         symbol = choice(STAR_SYMBOLS)
         offset = randint(1, 5)
         stars.append(blink(canvas, row, col, symbol, offset))
@@ -279,8 +283,9 @@ def draw(canvas):
     curses.curs_set(0)
     canvas.nodelay(True)
 
-    max_row, max_column = canvas.getmaxyx()
-    info_window = canvas.derwin(max_row-2, 2)
+    rows, columns = canvas.getmaxyx()
+    max_row, max_column = rows - 1, columns - 1
+    info_window = canvas.derwin(max_row-1, 2)
 
     global coroutines
     coroutines += create_stars(canvas, STAR_COUNT)
